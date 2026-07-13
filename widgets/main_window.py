@@ -512,7 +512,8 @@ class MainWindow(QWidget):
         self.tray_icon.show()
 
     def _on_tray_activated(self, reason):
-        if reason == QSystemTrayIcon.ActivationReason.Trigger:
+        # Chỉ DoubleClick mới mở/tắt cửa sổ, tránh bị trigger nhầm
+        if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
             if self.isVisible():
                 self.hide()
             else:

@@ -1,7 +1,3 @@
-"""
-Quản lý cấu hình ứng dụng: load/save config.json
-"""
-
 import json
 from pathlib import Path
 
@@ -17,7 +13,6 @@ DEFAULT_CONFIG = {
 
 
 def load_config() -> dict:
-    """Đọc cấu hình từ file JSON, trả về dict. Nếu lỗi hoặc file không tồn tại thì trả về mặc định."""
     if CONFIG_PATH.exists():
         try:
             cfg = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
@@ -37,5 +32,4 @@ def load_config() -> dict:
 
 
 def save_config(cfg: dict) -> None:
-    """Ghi cấu hình ra file JSON."""
     CONFIG_PATH.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")

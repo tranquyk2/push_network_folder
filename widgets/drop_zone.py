@@ -1,6 +1,3 @@
-"""
-Vùng kéo-thả file (DropZone widget) — thiết kế hiện đại.
-"""
 
 import os
 
@@ -9,7 +6,6 @@ from PyQt6.QtCore import Qt, pyqtSignal
 
 
 class DropZone(QLabel):
-    """QLabel hỗ trợ kéo-thả file/thư mục, hoặc click để chọn file."""
 
     files_dropped = pyqtSignal(list)
 
@@ -36,7 +32,6 @@ class DropZone(QLabel):
         self.setFont(font)
 
     def _reapply_style(self):
-        """Buộc Qt re-polish widget để cập nhật stylesheet động."""
         self.style().unpolish(self)
         self.style().polish(self)
 

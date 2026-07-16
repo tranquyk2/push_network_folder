@@ -1,7 +1,3 @@
-"""
-Dialog thêm đích mới (tên hiển thị + đường dẫn) — thiết kế hiện đại.
-"""
-
 from PyQt6.QtWidgets import (
     QDialog, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout,
     QLabel, QFileDialog, QFrame
@@ -10,7 +6,6 @@ from PyQt6.QtCore import Qt
 
 
 class AddDestinationDialog(QDialog):
-    """Dialog nhập tên hiển thị và đường dẫn thư mục đích."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -104,5 +99,4 @@ class AddDestinationDialog(QDialog):
             self.path_input.setText(folder)
 
     def get_values(self) -> tuple:
-        """Trả về (tên, đường_dẫn) đã nhập."""
         return self.name_input.text().strip(), self.path_input.text().strip()

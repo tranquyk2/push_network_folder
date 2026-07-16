@@ -1,20 +1,3 @@
-r"""
-Quản lý context menu Windows Explorer — đăng ký / xóa menu xổ xuống
-"Gửi lên ổ chung ▸" với danh sách đích bên trong.
-
-Dùng ExtendedSubCommandsKey để tạo cascading menu (Win10/11).
-Chỉ dùng HKEY_CURRENT_USER → không cần quyền Admin.
-
-Cấu trúc registry:
-    HKCU\Software\Classes\*\shell\NAS_Uploader
-        MUIVerb = "Gửi lên ổ chung"
-        ExtendedSubCommandsKey = "NAS_Uploader_SubCommands"
-
-    HKCU\Software\Classes\NAS_Uploader_SubCommands\shell\EQM
-        MUIVerb = "EQM  (E:/test)"
-        command\(Default) = "..."
-"""
-
 import sys
 import winreg
 from pathlib import Path
@@ -33,20 +16,15 @@ SUBCOMMANDS_FULL = r"Software\Classes\NAS_Uploader_SubCommands"
 
 
 def _pythonw() -> str:
-    """Đường dẫn pythonw.exe (không console)."""
     return sys.executable.replace("python.exe", "pythonw.exe")
 
 
 def _handler_path() -> str:
-    """Đường dẫn tuyệt đối tới shell_handler.py."""
     return str(Path(__file__).resolve().parent / "shell_handler.py")
 
 
 def register(destinations: dict) -> bool:
-    """
-    Đăng ký context menu xổ xuống "Gửi lên ổ chung ▸".
-    destinations = {"EQM": "E:/test", "Production": "Z:/Prod"}
-    """
+   
     unregister()
 
     if not destinations:
@@ -56,14 +34,12 @@ def register(destinations: dict) -> bool:
     handler = _handler_path()
 
     try:
-        # ── Bước 1: Menu gốc với ExtendedSubCommandsKey ──
         with winreg.CreateKey(winreg.HKEY_CURRENT_USER, MENU_KEY) as key:
             winreg.SetValueEx(key, "MUIVerb", 0, winreg.REG_SZ, "Gửi lên ổ chung")
             winreg.SetValueEx(key, "Icon", 0, winreg.REG_SZ, ICON_PATH)
             winreg.SetValueEx(key, "ExtendedSubCommandsKey", 0, winreg.REG_SZ,
                               SUBCOMMANDS_KEY)
 
-        # ── Bước 2: Từng subcommand ──
         for name, path in destinations.items():
             verb_key = f"{SUBCOMMANDS_FULL}\\shell\\{name}"
 
@@ -84,15 +60,11 @@ def register(destinations: dict) -> bool:
 
 
 def unregister() -> bool:
-    """Xóa toàn bộ context menu NAS Uploader khỏi Registry."""
     try:
-        # Xóa menu gốc
         _delete_tree_safe(winreg.HKEY_CURRENT_USER, MENU_KEY)
 
-        # Xóa subcommands container
         _delete_tree_safe(winreg.HKEY_CURRENT_USER, SUBCOMMANDS_FULL)
 
-        # Dọn các key rác từ các phiên bản cũ
         _cleanup_old_keys()
 
         return True
@@ -102,8 +74,6 @@ def unregister() -> bool:
 
 
 def _cleanup_old_keys():
-    """Dọn các registry key từ phiên bản context_menu cũ."""
-    # Xóa NAS_Uploader_* dạng menu riêng lẻ
     prefix = r"Software\Classes\*\shell"
     try:
         with winreg.OpenKey(
@@ -126,7 +96,6 @@ def _cleanup_old_keys():
     except FileNotFoundError:
         pass
 
-    # Xóa CommandStore entries cũ
     _delete_all_prefixed(
         winreg.HKEY_CURRENT_USER,
         r"Software\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell",

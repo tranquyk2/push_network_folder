@@ -1,14 +1,9 @@
-"""
-Flow Layout — tự động wrap widget xuống dòng khi container hẹp lại.
-Adapted from Qt's official FlowLayout example.
-"""
-
 from PyQt6.QtCore import Qt, QPoint, QRect, QSize
 from PyQt6.QtWidgets import QLayout, QSizePolicy, QStyle
 
 
 class FlowLayout(QLayout):
-    """Layout xếp widget theo dòng, tự động wrap khi hết chiều ngang."""
+    
 
     def __init__(self, parent=None, margin=0, spacing_h=-1, spacing_v=-1):
         super().__init__(parent)
@@ -18,7 +13,7 @@ class FlowLayout(QLayout):
         self.setContentsMargins(margin, margin, margin, margin)
 
     def __del__(self):
-        """Xóa toàn bộ item khi layout bị hủy."""
+        
         item = self.takeAt(0)
         while item:
             item = self.takeAt(0)
@@ -85,7 +80,7 @@ class FlowLayout(QLayout):
 
     # ── Core layout logic ──
     def _do_layout(self, rect: QRect, test_only: bool) -> int:
-        """Xếp widget theo dòng. Trả về chiều cao cần thiết."""
+        
         margins = self.contentsMargins()
         effective_rect = rect.adjusted(
             margins.left(), margins.top(),

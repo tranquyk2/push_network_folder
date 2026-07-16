@@ -124,6 +124,14 @@ def build_stylesheet(t: dict) -> str:
         min-height: 1px;
     }}
 
+    /* ═══════ Dialog Buttons (OK/Cancel) ═══════ */
+    QDialogButtonBox QPushButton {{
+        border-radius: 10px;
+        padding: 8px 18px;
+        min-width: 80px;
+        font-weight: 500;
+    }}
+
     /* ═══════ Buttons — General ═══════ */
     QPushButton {{
         background: {t['card']};
@@ -199,7 +207,8 @@ def build_stylesheet(t: dict) -> str:
     QPushButton#destBtn:checked {{
         background: {t['accent']};
         color: {t['accent_text']};
-        border: 1px solid {t['accent']};
+        border: 2px solid {t['accent_hover']};
+        border-radius: 20px;
         font-weight: 600;
     }}
 

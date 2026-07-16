@@ -1,28 +1,3 @@
-"""
-Cửa sổ chính của NAS Uploader v2 — Giao diện hiện đại, bố cục rõ ràng.
-
-Layout tổng thể:
-┌─────────────────────────────────────────┐
-│  Header: Logo + Title + Theme Toggle    │
-├─────────────────────────────────────────┤
-│  ⚠️ Connection Warning (nếu có)         │
-├─────────────────────────────────────────┤
-│  CARD: ĐÍCH LƯU FILE                   │
-│  ┌─ Toolbar: [+ Thêm] [- Xóa] [📁 Mở]│
-│  ├─ Divider ────────────────────────── │
-│  ├─ Dest chips: [Dest1] [Dest2] ...    │
-│  └─ Active dest info label             │
-├─────────────────────────────────────────┤
-│  CARD: KÉO FILE                        │
-│  ┌─ Drop zone                          │
-│  ├─ Progress bar                       │
-│  └─ Status label                       │
-├─────────────────────────────────────────┤
-│  CARD: KẾT QUẢ / LỊCH SỬ (stretch)    │
-│  ┌─ Tabs: [Phiên này] [Lịch sử]       │
-│  └─ List                               │
-└─────────────────────────────────────────┘
-"""
 
 import os
 import sys
@@ -60,7 +35,6 @@ ICON_PATH = str(Path(__file__).resolve().parent.parent / "folder.ico")
 # ────────────────────── Helpers ──────────────────────
 
 def make_card(layout_type=QVBoxLayout):
-    """Tạo 1 khung 'card' bo góc, có shadow nhẹ."""
     frame = QFrame()
     frame.setObjectName("card")
     inner_layout = layout_type()
@@ -78,7 +52,6 @@ def make_card(layout_type=QVBoxLayout):
 
 
 def make_divider():
-    """Tạo đường kẻ phân cách mỏng."""
     line = QFrame()
     line.setObjectName("divider")
     line.setFrameShape(QFrame.Shape.HLine)
@@ -87,10 +60,7 @@ def make_divider():
 
 
 def make_section_header(title_text: str, buttons: list = None):
-    """
-    Tạo section header chứa tiêu đề + toolbar buttons.
-    Returns (header_frame, title_label).
-    """
+    
     header = QFrame()
     header.setObjectName("sectionHeader")
     h_layout = QHBoxLayout()
@@ -113,7 +83,6 @@ def make_section_header(title_text: str, buttons: list = None):
 # ────────────────────── MainWindow ──────────────────────
 
 class MainWindow(QWidget):
-    """Cửa sổ chính của Ổ chung Uploader."""
 
     def __init__(self):
         super().__init__()
@@ -324,7 +293,7 @@ class MainWindow(QWidget):
             self.dest_buttons_row.addWidget(empty_label)
 
     def _sync_context_menu(self):
-        """Đồng bộ context menu Windows Explorer với danh sách đích hiện tại."""
+        
         register_context_menu(self.cfg.get("destinations", {}))
 
     def select_destination(self, name: str):
@@ -390,7 +359,7 @@ class MainWindow(QWidget):
 
     # ==================== Kiểm tra kết nối ====================
     def check_connection_silent(self):
-        """Im lặng nếu ổn, chỉ báo khi có vấn đề."""
+        
         path = self.cfg["destinations"].get(self.active_dest_name, "")
         if not path:
             self.conn_status_label.hide()
@@ -421,13 +390,41 @@ class MainWindow(QWidget):
             )
             return
 
+        # Lọc file trùng — hỏi người dùng có ghi đè không
+        approved = []
+
+        for src in paths:
+            filename = os.path.basename(src)
+            dest_path = os.path.join(dest, filename)
+
+            if os.path.exists(dest_path):
+                btn = QMessageBox.question(
+                    self, "File đã tồn tại",
+                    f"'{filename}' đã tồn tại tại đích.\n\nBạn có muốn ghi đè?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No
+                )
+
+                if btn == QMessageBox.StandardButton.Yes:
+                    approved.append(src)
+                else:
+                    item = QListWidgetItem(f"⏭ {filename} — Đã tồn tại, bỏ qua")
+                    item.setForeground(Qt.GlobalColor.darkGray)
+                    self.result_list.addItem(item)
+            else:
+                approved.append(src)
+
+        if not approved:
+            self.status_label.setText("Không có file nào để đẩy.")
+            return
+
         self.progress_bar.setValue(0)
-        self.progress_bar.setMaximum(len(paths))
+        self.progress_bar.setMaximum(len(approved))
         self.status_label.setText(
-            f"Đang đẩy {len(paths)} file vào '{self.active_dest_name}'..."
+            f"Đang đẩy {len(approved)} file vào '{self.active_dest_name}'..."
         )
 
-        self.worker = CopyWorker(paths, dest)
+        self.worker = CopyWorker(approved, dest)
         self.worker.progress_updated.connect(self._on_progress)
         self.worker.file_status.connect(self._on_file_status)
         self.worker.finished_all.connect(self._on_finished)
@@ -512,7 +509,6 @@ class MainWindow(QWidget):
         self.tray_icon.show()
 
     def _on_tray_activated(self, reason):
-        # Chỉ DoubleClick mới mở/tắt cửa sổ, tránh bị trigger nhầm
         if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
             if self.isVisible():
                 self.hide()
@@ -532,7 +528,7 @@ class MainWindow(QWidget):
         self.startup_action.setChecked(self._is_startup_enabled())
 
     def _create_startup_shortcut(self):
-        """Tạo shortcut trong Startup folder để app tự chạy khi boot."""
+        
         try:
             import pythoncom
             from win32comext.shell import shell, shellcon
@@ -580,7 +576,7 @@ $sc.Save()
             pass
 
     def closeEvent(self, event):
-        """Đóng cửa sổ = thu nhỏ xuống khay, không thoát hẳn."""
+        
         event.ignore()
         self.hide()
         self.tray_icon.showMessage(

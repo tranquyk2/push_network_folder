@@ -1,7 +1,3 @@
-"""
-Quản lý cơ sở dữ liệu SQLite: khởi tạo, ghi log, đọc lịch sử.
-"""
-
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -12,7 +8,6 @@ DB_PATH = APP_DIR / "history.db"
 
 
 def init_db() -> None:
-    """Khởi tạo bảng history nếu chưa tồn tại."""
     conn = sqlite3.connect(str(DB_PATH))
     conn.execute("""
         CREATE TABLE IF NOT EXISTS history (
@@ -31,7 +26,6 @@ def init_db() -> None:
 
 def log_history(filename: str, source_path: str, dest_path: str,
                 status: str, message: str = "") -> None:
-    """Ghi một bản ghi vào bảng history."""
     conn = sqlite3.connect(str(DB_PATH))
     conn.execute(
         "INSERT INTO history (filename, source_path, dest_path, status, message, timestamp) "
@@ -44,7 +38,6 @@ def log_history(filename: str, source_path: str, dest_path: str,
 
 
 def get_recent_history(limit: int = 100) -> list:
-    """Lấy danh sách các bản ghi gần đây nhất."""
     conn = sqlite3.connect(str(DB_PATH))
     cur = conn.execute(
         "SELECT filename, dest_path, status, message, timestamp FROM history "

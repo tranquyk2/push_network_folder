@@ -1,11 +1,3 @@
-"""
-Shell handler — Được gọi từ Windows context menu khi người dùng
-click phải file → "Gửi lên NAS → Tên đích".
-
-Cách dùng:
-    pythonw shell_handler.py --dest "EQM" "C:/path/to/file1.txt"
-"""
-
 import sys
 import os
 import ctypes
@@ -17,7 +9,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from config import load_config, APP_DIR
-from file_utils import file_hash, is_file_locked
+from file_utils import is_file_locked
 from database import init_db, log_history
 import shutil
 
@@ -30,7 +22,6 @@ LOG_PATH = APP_DIR / "shell_handler.log"
 
 
 class ProgressPopup(QWidget):
-    """Popup nhỏ hiển thị tiến trình gửi file."""
 
     def __init__(self, total_files: int, dest_name: str):
         super().__init__()
@@ -130,7 +121,6 @@ class ProgressPopup(QWidget):
 
 
 def _log(msg: str):
-    """Ghi log ra file (vì pythonw.exe không có console)."""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     try:
         with open(LOG_PATH, "a", encoding="utf-8") as f:
@@ -140,7 +130,6 @@ def _log(msg: str):
 
 
 def confirm_overwrite(filename: str, dest_path: str) -> bool:
-    """Hiện MessageBox hỏi người dùng có muốn ghi đè file đích không."""
     MB_YESNO = 0x04
     MB_ICONQUESTION = 0x20
     MB_TOPMOST = 0x40000
@@ -158,13 +147,12 @@ def confirm_overwrite(filename: str, dest_path: str) -> bool:
 
 
 def show_toast(title: str, message: str, icon_type: str = "info"):
-    """Hiển thị Windows toast notification hoặc fallback MessageBox."""
     _log(f"TOAST [{icon_type}] {title}: {message}")
 
     try:
         from winotify import Notification
         toast = Notification(
-            app_id="NAS Uploader",
+            app_id="Uploader",
             title=title,
             msg=message,
         )
@@ -192,14 +180,22 @@ def main():
     try:
         init_db()
 
-        # ── Parse arguments ──
-        args = sys.argv[1:]
-        if len(args) < 3 or args[0] != "--dest":
-            show_toast("NAS Uploader", "Dùng: --dest <tên_đích> <file1> [file2...]", "warning")
+        # ── Parse arguments: chỉ lấy file paths sau --dest <name> ──
+        dest_name = ""
+        file_paths = []
+
+        i = 1
+        while i < len(sys.argv):
+            if sys.argv[i] == "--dest" and i + 1 < len(sys.argv):
+                dest_name = sys.argv[i + 1]
+                file_paths = sys.argv[i + 2:]  # mọi thứ sau --dest <name> là file
+                break
+            i += 1
+
+        if not dest_name or not file_paths:
+            show_toast("Uploader", "Dùng: --dest <tên_đích> <file1> [file2...]", "warning")
             sys.exit(1)
 
-        dest_name = args[1]
-        file_paths = args[2:]
         _log(f"dest_name={dest_name}, file_paths={file_paths}")
 
         # ── Load config & xác minh đích ──
@@ -208,12 +204,12 @@ def main():
         _log(f"dest_folder={dest_folder}")
 
         if not dest_folder:
-            show_toast("NAS Uploader", f"Không tìm thấy đích '{dest_name}'.", "error")
+            show_toast("Uploader", f"Không tìm thấy đích '{dest_name}'.", "error")
             sys.exit(1)
 
         if not os.path.isdir(dest_folder):
             show_toast(
-                "NAS Uploader",
+                "Uploader",
                 f"Không kết nối được tới '{dest_name}' ({dest_folder}).\nKiểm tra VPN/mạng.",
                 "error",
             )
@@ -241,8 +237,8 @@ def main():
             dest_path = os.path.join(dest_folder, filename)
             _log(f"Processing: {src} -> {dest_path}")
 
-            # Hiển thị đang kiểm tra hash
-            popup.update_progress(idx - 1, filename, "hash")
+            # Hiển thị popup ngay — trước mọi thao tác nặng
+            popup.update_progress(idx - 1, filename, "copy")
 
             # Kiểm tra file đích bị khóa
             if is_file_locked(dest_path):
@@ -252,54 +248,38 @@ def main():
                 popup.update_progress(idx, filename, "error")
                 continue
 
-            # Kiểm tra trùng
+            # Kiểm tra trùng tên → hỏi ghi đè
             if os.path.exists(dest_path):
-                if os.path.getsize(src) == os.path.getsize(dest_path) and \
-                   file_hash(src) == file_hash(dest_path):
-                    _log(f"SKIP identical: {filename}")
-                    log_history(filename, src, dest_path, "skip", "Trùng nội dung")
+                if not confirm_overwrite(filename, dest_path):
+                    _log(f"SKIP user declined: {filename}")
+                    log_history(filename, src, dest_path, "skip",
+                                "Người dùng từ chối ghi đè")
                     skipped += 1
                     popup.update_progress(idx, filename, "skip")
                     continue
-                else:
-                    # File khác nội dung → hỏi người dùng có ghi đè không
-                    if not confirm_overwrite(filename, dest_path):
-                        _log(f"SKIP user declined overwrite: {filename}")
-                        log_history(filename, src, dest_path, "skip",
-                                    "Người dùng từ chối ghi đè")
-                        skipped += 1
-                        popup.update_progress(idx, filename, "skip")
-                        continue
-                    _log(f"OVERWRITE: {filename}")
+                _log(f"OVERWRITE: {filename}")
 
             # Copy
-            popup.update_progress(idx - 1, filename, "copy")
             try:
                 shutil.copy2(src, dest_path)
-                if file_hash(src) == file_hash(dest_path):
-                    log_history(filename, src, dest_path, "success", "Đã xác minh hash")
-                    success += 1
-                    _log(f"OK: {filename}")
-                    popup.update_progress(idx, filename, "done")
-                else:
-                    log_history(filename, src, dest_path, "error", "Hash không khớp")
-                    errors += 1
-                    _log(f"HASH MISMATCH: {filename}")
-                    popup.update_progress(idx, filename, "error")
+                log_history(filename, src, dest_path, "success", "Đã copy")
+                success += 1
+                _log(f"OK: {filename}")
+                popup.update_progress(idx, filename, "done")
             except Exception as e:
                 log_history(filename, src, dest_path, "error", str(e))
                 errors += 1
                 _log(f"COPY ERROR: {filename} - {e}")
                 popup.update_progress(idx, filename, "error")
 
-        # ── Hiển thị kết quả ──
+        # ── hisn thị kết quả ──
         popup.show_result(success, errors, skipped)
         qt_app.exec()  # giữ popup hiển thị 2.5s rồi tự đóng
 
     except Exception as e:
         _log(f"FATAL ERROR: {e}")
         _log(traceback.format_exc())
-        show_toast("NAS Uploader", f"Lỗi: {e}", "error")
+        show_toast("Uploader", f"Lỗi: {e}", "error")
 
 
 if __name__ == "__main__":
